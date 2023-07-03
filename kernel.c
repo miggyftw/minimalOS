@@ -65,7 +65,7 @@ uint16_t* terminal_buffer;
 void terminal_initialize() {
   terminal_row = 0;
   terminal_column = 0;
-  terminal_color = make_color(COLOR_LIGHT_GREY, COLOR_BLACK);
+  terminal_color = make_color(COLOR_WHITE, COLOR_BLACK);
   terminal_buffer = (uint16_t*) 0xB8000;
   for (size_t y = 0; y < VGA_HEIGHT; y++) {
     for (size_t x = 0; x < VGA_WIDTH; x++) {
@@ -84,21 +84,67 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
   terminal_buffer[index] = make_vgaentry(c, color);
 }
 
-void terminal_putchar(char c) {
-  terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
-  if (++terminal_column == VGA_WIDTH) {
-    terminal_column = 0;
-    if (++terminal_row == VGA_HEIGHT) {
-      terminal_row = 0;
-    }
+void terminal_clear_line(size_t y)   //clear gived line
+{ 
+  size_t x = 0;
+  while(x < VGA_WIDTH){
+    terminal_putentryat(' ', terminal_color, x, y);
+    x++;
   }
 }
+
+void terminal_clearscreen(void)    //clear all screen and set prompt to up left corner
+{
+  size_t y = 0;
+  while(y < VGA_HEIGHT){
+    terminal_clear_line(y);
+    y++;
+  }
+  terminal_row = 0;
+  terminal_column = 0;
+}	
+
+void terminal_scroll(void)         //scroll losing the first line written
+{ 
+  for (size_t y = 0; y < VGA_HEIGHT; y++){
+    for (size_t x = 0; x < VGA_WIDTH; x++){
+      const size_t index = y * VGA_WIDTH + x;
+      const size_t next_index = (y + 1) * VGA_WIDTH + x;
+      terminal_buffer[index] = terminal_buffer[next_index];
+    }
+  }
+  terminal_clear_line(VGA_HEIGHT-1);
+  terminal_row = VGA_HEIGHT-1;
+  terminal_column = 0;
+}
+
+void terminal_putchar(char c) {
+  if(c == '\n'){                  //to handle '\n'
+    terminal_column = 0;
+    if(terminal_row == VGA_HEIGHT-1){ 
+      terminal_scroll();
+    }else {
+      terminal_row++;
+    }
+
+  }
+  else{
+    terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
+      if (++terminal_column == VGA_WIDTH) {
+        terminal_column = 0;
+        if (++terminal_row == VGA_HEIGHT) {
+        terminal_row = 0;
+        }
+      }
+  }  
+ }
  
 void terminal_writestring(const char* data) {
   size_t datalen = strlen(data);
   for (size_t i = 0; i < datalen; i++)
     terminal_putchar(data[i]);
 }
+
 
 #if defined(__cplusplus)
 extern "C" /* Use C linkage for kernel_main. */
@@ -111,5 +157,23 @@ void kernel_main() {
    * yet, '\n' will produce some VGA specific character instead.
    * This is normal.
    */
+  int z = 0;
+  for (z = 0; z < 31; z++){
+    if(z >= 0 && z<2){
+  terminal_setcolor(make_color(COLOR_RED, COLOR_BLACK)); //to change the text color to red
   terminal_writestring("Hello, kernel World!\n");
+    }
+    if(z >= 2 && z<8){
+  terminal_setcolor(make_color(COLOR_WHITE, COLOR_BLACK)); //to change the text color to white
+  terminal_writestring("Hello, kernel World!\n");
+    }
+    if(z >= 8 && z<26){
+  terminal_setcolor(make_color(COLOR_BLUE, COLOR_BLACK)); //to change the text color to blue
+  terminal_writestring("Hello, kernel World!\n");
+    }
+    if(z >= 26 && z<31){
+  terminal_setcolor(make_color(COLOR_GREEN, COLOR_BLACK)); //to change the text color to green
+  terminal_writestring("Hello, kernel World!\n");
+    }
+  }
 }
